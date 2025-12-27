@@ -6,25 +6,7 @@ A robust, safety-aware Retrieval-Augmented Generation (RAG) system designed to a
 
 The system follows a standard RAG pipeline with added safety guardrails.
 
-```mermaid
-graph TD
-    subgraph Ingestion Pipeline
-        D[Documents (PDF/TXT/MD)] -->|Load| L[Document Loader]
-        L -->|Split| S[Text Splitter]
-        S -->|Chunk| C[Chunks]
-        C -->|Embed| E[Embedding Model]
-        E -->|Vectorize| V[FAISS Vector Store]
-    end
-
-    subgraph RAG Inference Flow
-        U[User Query] -->|Embed| E_Q[Query Embedding]
-        E_Q -->|Search| V
-        V -->|Retrieve| R[Relevant Chunks]
-        R -->|Score| G[Confidence Guardrail]
-        G -->|Context + Prompt| LLM[Large Language Model]
-        LLM -->|Generate| A[Answer]
-    end
-```
+![Architecture Diagram](architecture.png)
 
 ## 🔄 Workflow
 
