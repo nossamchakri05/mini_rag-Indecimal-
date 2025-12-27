@@ -1,50 +1,105 @@
 # Mini RAG: Construction Marketplace Assistant
 
-This is a Retrieval-Augmented Generation (RAG) application designed to answer questions based on internal construction marketplace documents.
+A robust, safety-aware Retrieval-Augmented Generation (RAG) system designed to answer questions based strictly on internal construction documents.
 
-## Features
-- **Document Ingestion**: Loads PDF and Text files from the `data/` directory.
-- **Chunking & Embedding**: Splits text into chunks and generates embeddings using `sentence-transformers/all-MiniLM-L6-v2`.
-- **Vector Search**: Uses FAISS for efficient semantic retrieval.
-- **LLM Integration**: Supports both OpenRouter (API) and Local LLMs (via Ollama).
-- **Transparency**: Displays the retrieved context chunks alongside the generated answer.
+## 🏗️ Architecture
 
-## Architecture
-1.  **Ingestion**: `src/ingestion.py` loads and splits documents.
-2.  **Embeddings**: `src/embeddings.py` uses HuggingFace embeddings.
-3.  **Vector Store**: `src/vector_store.py` manages the FAISS index.
-4.  **RAG Chain**: `src/rag.py` combines retrieval and generation.
-5.  **UI**: `src/app.py` provides the Streamlit interface.
+The system follows a standard RAG pipeline with added safety guardrails.
 
-## Setup Instructions
+```mermaid
+graph TD
+    subgraph Ingestion Pipeline
+        D[Documents (PDF/TXT/MD)] -->|Load| L[Document Loader]
+        L -->|Split| S[Text Splitter]
+        S -->|Chunk| C[Chunks]
+        C -->|Embed| E[Embedding Model]
+        E -->|Vectorize| V[FAISS Vector Store]
+    end
 
-1.  **Install Dependencies**:
+    subgraph RAG Inference Flow
+        U[User Query] -->|Embed| E_Q[Query Embedding]
+        E_Q -->|Search| V
+        V -->|Retrieve| R[Relevant Chunks]
+        R -->|Score| G[Confidence Guardrail]
+        G -->|Context + Prompt| LLM[Large Language Model]
+        LLM -->|Generate| A[Answer]
+    end
+```
+
+## 🔄 Workflow
+
+1.  **Ingestion**:
+    *   Users upload files via the Streamlit UI.
+    *   Files are saved to `data/`.
+    *   `src/ingestion.py` loads and splits text into manageable chunks.
+    *   `src/embeddings.py` converts chunks into vector embeddings using `sentence-transformers/all-MiniLM-L6-v2`.
+    *   `src/vector_store.py` indexes these vectors using FAISS for fast retrieval.
+
+2.  **Retrieval & Generation**:
+    *   User asks a question.
+    *   System retrieves the top 3 most relevant chunks.
+    *   **Safety Check**: If the similarity score is low (distance > 1.0), a "Low Confidence" warning is injected.
+    *   **Prompting**: The LLM is prompted with strict instructions to answer *only* from the context.
+    *   **Response**: The answer is displayed along with the source chunks for transparency.
+
+## 🛡️ Guardrails & Safety
+
+To prevent hallucinations and ensure professional responses, we implemented the following:
+
+1.  **"Not Explicitly Stated" Fallback**:
+    *   If the answer is not in the documents, the model is forced to reply: *"Not specified in this document"*.
+2.  **Vocabulary Control**:
+    *   **Allowed**: "Positioned as", "Subject to contract".
+    *   **Prohibited**: "Always", "Guaranteed" (unless explicitly in text).
+3.  **Citation Confidence**:
+    *   Retrieval scores are monitored. Weak matches trigger hedging language (e.g., *"The documents suggest..."*).
+
+## 🚀 Setup & Usage
+
+### Prerequisites
+*   Python 3.10+
+*   OpenRouter API Key (for GPT-3.5) OR Ollama (for Local LLM)
+
+### Installation
+1.  **Clone the repository**:
+    ```bash
+    git clone <repo-url>
+    cd mini_rag
+    ```
+2.  **Install dependencies**:
     ```bash
     pip install -r requirements.txt
     ```
+3.  **Configure API Key**:
+    *   Create a `.env` file in the root directory.
+    *   Add your key: `OPENROUTER_API_KEY=sk-or-v1-...`
 
-2.  **Prepare Documents**:
-    - Place your PDF or Text files in the `data/` directory.
+### Running the App
+```bash
+streamlit run src/app.py
+```
 
-3.  **Run the Application**:
-    ```bash
-    streamlit run src/app.py
-    ```
+### Using the Interface
+1.  **Upload & Process**: 
+    *   Use the sidebar to upload PDF, TXT, or MD files.
+    *   Click "Save & Process Uploaded Files".
+    *   *The system chunks the documents and builds the index.*
+    
+    ![Upload and Processing](upload%20files%20and%20chunck%20division.png)
 
-## Usage
-1.  Open the app in your browser.
-2.  **Configuration**:
-    - Select "OpenRouter" and enter your API Key, OR
-    - Select "Local" and ensure Ollama is running (default model: `llama3`).
-3.  **Ingest**: Click "Process Documents" to build the index.
-4.  **Chat**: Ask questions like "What factors affect construction project delays?".
+2.  **Chat**: 
+    *   Ask questions in the main chat window.
+    *   The AI answers based strictly on the documents.
+    
+    ![Question and Response](question%20and%20response.png)
 
-## Design Choices
-- **Embeddings**: Used `all-MiniLM-L6-v2` for a good balance of speed and performance.
-- **Vector Store**: FAISS is efficient for local vector search.
-- **Framework**: Streamlit for rapid UI development.
+3.  **Verify Context**: 
+    *   Expand "Retrieved Context" to see the source text used for the answer.
+    *   This ensures transparency and helps verify the answer's accuracy.
+    
+    ![Review Context](revie%20context%20for%20a%20question.png)
 
-## Quality Analysis (Bonus)
+## 📊 Quality Analysis (Bonus)
 
 We performed a basic evaluation using test questions derived from the documents.
 
@@ -55,13 +110,17 @@ We performed a basic evaluation using test questions derived from the documents.
     - **OpenRouter (GPT-3.5)**: Fast (~1-2s), high quality.
     - **Local (Llama3)**: Slower (~5-10s depending on hardware), but completely private.
 
-## Deliverables Checklist
-- [x] Deployed working chatbot interface (Streamlit).
-- [x] GitHub repository (Local Git initialized).
-- [x] README.md with architecture and instructions.
-- [x] Document Chunking & Embedding (Sentence-Transformers).
-- [x] Vector Search (FAISS).
-- [x] Grounded Answer Generation (Prompt Engineering).
-- [x] Transparency (Retrieved Context Display).
-- [x] Bonus: Local LLM Support.
-
+## 📂 Project Structure
+```
+mini_rag/
+├── data/                   # Document storage
+├── src/
+│   ├── app.py              # Streamlit UI
+│   ├── ingestion.py        # Loader & Splitter
+│   ├── embeddings.py       # Embedding Model
+│   ├── vector_store.py     # FAISS Index Manager
+│   ├── llm.py              # LLM Factory
+│   └── rag.py              # RAG Chain & Guardrails
+├── requirements.txt        # Dependencies
+└── README.md               # Documentation
+```

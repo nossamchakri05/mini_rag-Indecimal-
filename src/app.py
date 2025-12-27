@@ -20,37 +20,64 @@ model_type = "openrouter"
 model_name = "openai/gpt-3.5-turbo"
 api_key = os.getenv("OPENROUTER_API_KEY")
 
+def process_docs():
+    with st.spinner("Processing documents..."):
+        try:
+            # Lazy imports
+            from ingestion import load_documents, split_documents
+            from embeddings import get_embedding_model
+            from vector_store import create_vector_store, save_vector_store
+            
+            # 1. Load
+            docs = load_documents("data")
+            if not docs:
+                st.error("No documents found in 'data/' folder.")
+            else:
+                st.info(f"Loaded {len(docs)} documents.")
+                
+                # 2. Split
+                chunks = split_documents(docs)
+                st.info(f"Created {len(chunks)} chunks.")
+                
+                # 3. Embed & Index
+                embeddings = get_embedding_model()
+                vector_store = create_vector_store(chunks, embeddings)
+                save_vector_store(vector_store, "faiss_index")
+                st.success("Indexing complete! Vector store saved.")
+        except Exception as e:
+            st.error(f"Error processing documents: {e}")
+
 # Sidebar for Actions
 with st.sidebar:
     st.header("Actions")
     
-    # Ingestion
-    if st.button("Process Documents"):
-        with st.spinner("Processing documents..."):
-            try:
-                # Lazy imports
-                from ingestion import load_documents, split_documents
-                from embeddings import get_embedding_model
-                from vector_store import create_vector_store, save_vector_store
-                
-                # 1. Load
-                docs = load_documents("data")
-                if not docs:
-                    st.error("No documents found in 'data/' folder.")
-                else:
-                    st.info(f"Loaded {len(docs)} documents.")
-                    
-                    # 2. Split
-                    chunks = split_documents(docs)
-                    st.info(f"Created {len(chunks)} chunks.")
-                    
-                    # 3. Embed & Index
-                    embeddings = get_embedding_model()
-                    vector_store = create_vector_store(chunks, embeddings)
-                    save_vector_store(vector_store, "faiss_index")
-                    st.success("Indexing complete! Vector store saved.")
-            except Exception as e:
-                st.error(f"Error processing documents: {e}")
+    # File Upload
+    uploaded_files = st.file_uploader("Upload Documents", accept_multiple_files=True, type=["pdf", "txt", "md"])
+    
+    if uploaded_files:
+        if st.button("Save & Process Uploaded Files"):
+            # Clear existing data
+            data_dir = "data"
+            if os.path.exists(data_dir):
+                for file in os.listdir(data_dir):
+                    os.remove(os.path.join(data_dir, file))
+            else:
+                os.makedirs(data_dir)
+            
+            # Save new files
+            for uploaded_file in uploaded_files:
+                with open(os.path.join(data_dir, uploaded_file.name), "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+            st.success(f"Saved {len(uploaded_files)} files to data/ folder.")
+            
+            # Trigger processing
+            process_docs()
+
+    st.divider()
+    
+    # Manual Process Button (for existing files)
+    if st.button("Reprocess Existing Files"):
+        process_docs()
 
 # Main Chat Interface
 if "messages" not in st.session_state:
