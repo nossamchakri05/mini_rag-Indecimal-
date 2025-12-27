@@ -2,13 +2,13 @@
 
 A robust, safety-aware Retrieval-Augmented Generation (RAG) system designed to answer questions based strictly on internal construction documents.
 
-## 🏗️ Architecture
+## Architecture
 
 The system follows a standard RAG pipeline with added safety guardrails.
 
 ![Architecture Diagram](architecture.png)
 
-## 🔄 Workflow
+## Workflow
 
 1.  **Ingestion**:
     *   Users upload files via the Streamlit UI.
@@ -24,7 +24,7 @@ The system follows a standard RAG pipeline with added safety guardrails.
     *   **Prompting**: The LLM is prompted with strict instructions to answer *only* from the context.
     *   **Response**: The answer is displayed along with the source chunks for transparency.
 
-## 🛡️ Guardrails & Safety
+## Guardrails & Safety
 
 To prevent hallucinations and ensure professional responses, we implemented the following:
 
@@ -36,7 +36,7 @@ To prevent hallucinations and ensure professional responses, we implemented the 
 3.  **Citation Confidence**:
     *   Retrieval scores are monitored. Weak matches trigger hedging language (e.g., *"The documents suggest..."*).
 
-## 🚀 Setup & Usage
+## Setup & Usage
 
 ### Prerequisites
 *   Python 3.10+
@@ -92,7 +92,7 @@ We performed a basic evaluation using test questions derived from the documents.
     - **OpenRouter (GPT-3.5)**: Fast (~1-2s), high quality.
     - **Local (Llama3)**: Slower (~5-10s depending on hardware), but completely private.
 
-## 📂 Project Structure
+## Project Structure
 ```
 mini_rag/
 ├── data/                   # Document storage
