@@ -81,7 +81,7 @@ streamlit run src/app.py
     
     ![Review Context](revie%20context%20for%20a%20question.png)
 
-## 📊 Quality Analysis (Bonus)
+## Quality Analysis (Bonus)
 
 We performed a basic evaluation using test questions derived from the documents.
 
