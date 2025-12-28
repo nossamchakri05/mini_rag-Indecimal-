@@ -48,17 +48,23 @@ To prevent hallucinations and ensure professional responses, we implemented the 
 
 ### Chunking & Retrieval
 *   **Chunking Strategy**: Documents are split using `RecursiveCharacterTextSplitter` with:
-    *   `chunk_size=1000`: Ensures sufficient context for complex queries.
-    *   `chunk_overlap=200`: Prevents context loss at chunk boundaries.
+    *   `chunk_size=450`: Reduced from 1000 to capture more granular semantic units (e.g., individual policy clauses).
+    *   `chunk_overlap=100`: Ensures continuity between chunks.
+    *   **Semantic Splitting**: Explicitly splits on headings (`##`, `###`) and bullet points to preserve document structure.
 *   **Retrieval**: 
-    *   **Vector Store**: FAISS (Facebook AI Similarity Search) is used for efficient similarity search.
-    *   **Method**: L2 distance similarity search retrieves the top 3 most relevant chunks.
+    *   **Vector Store**: FAISS (Facebook AI Similarity Search).
+    *   **Method**: L2 distance similarity search retrieves the top **7** most relevant chunks (increased from 3) to support multi-hop reasoning.
 
 ### Grounding Enforcement
 Grounding is enforced through a multi-layered approach:
-1.  **Strict System Prompt**: The LLM is explicitly instructed to answer *only* based on the provided context.
-2.  **Confidence Scoring**: We calculate the L2 distance of retrieved chunks. If the distance exceeds a threshold (1.0), a "Low retrieval confidence" system note is injected into the context.
-3.  **Hedged Responses**: When low confidence is detected, the LLM is instructed to use hedging language (e.g., "The documents suggest...") rather than definitive statements.
+1.  **Strict System Prompt**: The LLM is acting as an "Internal Policy-Aware Assistant" with strict rules:
+    *   "Use ONLY the provided context."
+    *   "Do NOT assume legal guarantees unless explicitly stated."
+    *   **Confidence Override**: Explicitly allows synthesis across multiple chunks if they collectively answer the question.
+2.  **3-Tier Confidence Scoring**:
+    *   **High Confidence** (Score < 0.8): Answer directly.
+    *   **Moderate Confidence** (0.8 - 1.2): Inject "Moderate retrieval confidence" warning.
+    *   **Low Confidence** (> 1.2): Inject "Low retrieval confidence" warning and force hedging/refusal.
 
 ## Setup & Usage
 
