@@ -15,36 +15,41 @@ def create_rag_chain(vector_store: VectorStore, llm: BaseChatModel):
     def retrieve_with_scores(query: str):
         """Retrieves documents and checks confidence scores."""
         # FAISS default is L2 distance. Lower is better.
-        # Threshold: > 1.0 implies weak similarity for normalized vectors.
-        threshold = 1.0
+        # Thresholds for 3-tier confidence
+        high_conf_threshold = 0.8
+        low_conf_threshold = 1.2
         
-        results = vector_store.similarity_search_with_score(query, k=3)
-        
-        docs = []
-        low_confidence = False
+        # Increased retrieval depth
+        results = vector_store.similarity_search_with_score(query, k=7)
         
         if not results:
             return "No relevant documents found."
             
         best_score = results[0][1]
-        if best_score > threshold:
-            low_confidence = True
+        
+        # 3-Tier Confidence Logic
+        system_note = ""
+        if best_score < high_conf_threshold:
+            pass # High confidence, no note
+        elif best_score < low_conf_threshold:
+            system_note = f"SYSTEM NOTE: Moderate retrieval confidence (Score: {best_score:.2f}). Answer with disclaimer.\n\n"
+        else:
+            system_note = f"SYSTEM NOTE: Low retrieval confidence (Score: {best_score:.2f}). Use hedging language or refusal if unsure.\n\n"
             
         context_text = "\n\n".join(doc.page_content for doc, score in results)
-        
-        if low_confidence:
-            context_text = f"SYSTEM NOTE: Low retrieval confidence (Score: {best_score:.2f}). Use hedging language.\n\n{context_text}"
-            
-        return context_text
+        return f"{system_note}{context_text}"
 
-    template = """You are a strict assistant for a construction marketplace.
-Answer the question based ONLY on the following context.
+    template = """You are an internal policy-aware assistant.
 
-GUARDRAILS:
-1. If the answer is not explicitly stated, you MUST say "The provided documents do not explicitly state [concept]" or "Not specified in this document".
-2. ALLOWED phrases: "Positioned as", "Described as", "Subject to contract", "Not specified in this document".
-3. PROHIBITED phrases (unless explicitly in text): "Always", "Guaranteed", "Legal documentation", "Contractually defined".
-4. If the context mentions "Low retrieval confidence", use hedging language (e.g., "It appears...", "The documents suggest...").
+Rules:
+1. Use ONLY the provided context.
+2. If the answer is clearly present in the context, answer directly and confidently.
+3. If the answer is partially present, answer with scope limitations.
+4. Only say "not specified" if the information is completely absent.
+5. Do NOT assume legal guarantees unless explicitly stated.
+6. Prefer citing mechanisms, processes, and positioning over guarantees.
+7. When lists exist, reproduce them faithfully.
+8. CONFIDENCE OVERRIDE: If multiple retrieved chunks collectively answer the question, synthesize the answer instead of refusing.
 
 Context:
 {context}
@@ -66,9 +71,6 @@ Question: {question}
     )
     
     # Return a chain that returns a dict with 'answer' and 'context' to match app.py expectation
-    # We need to reconstruct the context for display, so we run retrieval separately or use a different structure.
-    # To keep it compatible with app.py which expects {'answer': ..., 'context': ...}, we need to adjust.
-    
     chain_with_context = RunnableParallel(
         {
             "context": RunnableLambda(retrieve_with_scores),
